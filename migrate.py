@@ -28,7 +28,7 @@ class LogseqToSilverBulletMigrator:
         self.logseq_assets_dir = self.source_dir / "assets"
         
         # SilverBullet target directories
-        self.journals_dir = self.target_dir / "journals"
+        # Note: journals go in root, not in a subdirectory
         self.assets_dir = self.target_dir / "assets"
         
         # Logseq uses YYYY_MM_DD format for journal files
@@ -105,10 +105,8 @@ class LogseqToSilverBulletMigrator:
     def setup_target_directory(self):
         """Create target directory structure"""
         self.target_dir.mkdir(parents=True, exist_ok=True)
-        self.journals_dir.mkdir(parents=True, exist_ok=True)
         self.assets_dir.mkdir(parents=True, exist_ok=True)
         print(f"✓ Created target directory: {self.target_dir}")
-        print(f"✓ Created journals directory: {self.journals_dir}")
         print(f"✓ Created assets directory: {self.assets_dir}")
     
     def is_journal_file(self, filename):
@@ -157,7 +155,27 @@ class LogseqToSilverBulletMigrator:
         - Natural language dates: [[Nov 6th, 2025]] → [[2025-11-06]]
         - Page links with ___: [[foo___bar]] → [[foo/bar]]
         - Asset links: ../assets/image.png → assets/image.png (or keep as-is)
+        - Tasks: Logseq task syntax → SilverBullet task syntax
         """
+        # Convert Logseq tasks to SilverBullet format
+        # Logseq uses: TODO, DOING, DONE, LATER, NOW, WAITING, CANCELED
+        # SilverBullet uses standard markdown: - [ ], - [x]
+        
+        # Map Logseq task states
+        # TODO/LATER/NOW/WAITING → [ ] (unchecked)
+        content = re.sub(r'^(\s*)[-*]\s+(TODO|LATER|NOW|WAITING)\s+', r'\1- [ ] ', content, flags=re.MULTILINE)
+        
+        # DOING → [ ] (unchecked, but we could mark it specially)
+        content = re.sub(r'^(\s*)[-*]\s+DOING\s+', r'\1- [ ] **DOING:** ', content, flags=re.MULTILINE)
+        
+        # DONE → [x] (checked)
+        content = re.sub(r'^(\s*)[-*]\s+DONE\s+', r'\1- [x] ', content, flags=re.MULTILINE)
+        
+        # CANCELED → [x] (checked, with strikethrough)
+        content = re.sub(r'^(\s*)[-*]\s+CANCELED\s+', r'\1- [x] ~~', content, flags=re.MULTILINE)
+        # Add closing strikethrough at end of line for CANCELED tasks
+        content = re.sub(r'^((\s*)- \[x\] ~~.*)$', r'\1~~', content, flags=re.MULTILINE)
+        
         # Convert date references from [[YYYY_MM_DD]] to [[YYYY-MM-DD]]
         content = re.sub(
             r'\[\[(\d{4})_(\d{2})_(\d{2})\]\]',
@@ -228,14 +246,15 @@ class LogseqToSilverBulletMigrator:
         
         # Convert filename and content
         new_filename = self.convert_journal_filename(filename)
-        target_file = self.journals_dir / new_filename
+        # Journals go in the root directory, not in a subdirectory
+        target_file = self.target_dir / new_filename
         converted_content = self.convert_content(content, is_journal=True)
         
         # Write the converted content
         try:
             with open(target_file, 'w', encoding='utf-8') as f:
                 f.write(converted_content)
-            print(f"✓ Migrated journal: {filename} → journals/{new_filename}")
+            print(f"✓ Migrated journal: {filename} → {new_filename}")
             return True
         except Exception as e:
             print(f"✗ Error writing {target_file}: {e}")

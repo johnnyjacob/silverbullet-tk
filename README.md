@@ -5,9 +5,9 @@ This script migrates your Logseq markdown files to SilverBullet v2 format.
 ## What it does
 
 - **Processes Logseq's directory structure**: Reads from `journals/`, `pages/`, and `assets/` directories
-- **Moves journal entries** to a `journals/` folder in SilverBullet
-- **Converts date format** from Logseq's `YYYY_MM_DD.md` to SilverBullet's `YYYY-MM-DD.md`
+- **Converts journal dates** from Logseq's `YYYY_MM_DD.md` to SilverBullet's `YYYY-MM-DD.md` (in root directory)
 - **Converts natural language dates** like `[[Nov 6th, 2025]]` to journal links `[[2025-11-06]]`
+- **Converts Logseq tasks** to standard markdown checkboxes
 - **Creates nested directories** from page names with `___` (e.g., `foo___bar.md` → `foo/bar.md`)
 - **Migrates all assets** including images and other media files
 - **Updates date references** in content from `[[YYYY_MM_DD]]` to `[[YYYY-MM-DD]]`
@@ -45,9 +45,9 @@ python3 migrate_logseq_to_silverbullet.py ./my-logseq-vault ./silverbullet
 ## What gets migrated
 
 ### Journal Files (from `journals/` directory)
-Files matching the pattern `YYYY_MM_DD.md` in the journals directory:
-- `2024_01_15.md` → `journals/2024-01-15.md`
-- `2023_12_25.md` → `journals/2023-12-25.md`
+Files matching the pattern `YYYY_MM_DD.md` in the journals directory are placed in the root:
+- `2024_01_15.md` → `2024-01-15.md`
+- `2023_12_25.md` → `2023-12-25.md`
 
 ### Regular Pages (from `pages/` directory)
 All `.md` files in the pages directory:
@@ -66,6 +66,16 @@ All files in the assets directory (images, PDFs, etc.) are copied to SilverBulle
 - `assets/screenshot.png` → `assets/screenshot.png`
 - `assets/documents/report.pdf` → `assets/documents/report.pdf`
 - Subdirectory structure is preserved
+
+### Task Conversion
+Logseq tasks are converted to standard markdown checkboxes:
+- `- TODO Buy groceries` → `- [ ] Buy groceries`
+- `- DOING Write report` → `- [ ] **DOING:** Write report`
+- `- DONE Finish homework` → `- [x] Finish homework`
+- `- LATER Plan vacation` → `- [ ] Plan vacation`
+- `- NOW Call client` → `- [ ] Call client`
+- `- WAITING Response from team` → `- [ ] Response from team`
+- `- CANCELED Old task` → `- [x] ~~Old task~~`
 
 ### Content Conversion
 Links in your content are also updated:
@@ -100,9 +110,8 @@ my-logseq-vault/
 **After (SilverBullet):**
 ```
 silverbullet/
-├── journals/
-│   ├── 2024-01-15.md
-│   └── 2024-01-16.md
+├── 2024-01-15.md          (journal in root)
+├── 2024-01-16.md          (journal in root)
 ├── assets/
 │   ├── screenshot.png
 │   ├── diagram.jpg
@@ -116,7 +125,7 @@ silverbullet/
         └── Projects.md (from Work___Projects.md)
 ```
 
-**Note:** The nested structure creates a more organized hierarchy. Pages like `Work___Projects.md` become `Work/Projects.md`, making it easy to browse related content in folders.
+**Note:** Journal files are placed in the root directory alongside your pages, not in a separate `journals/` subdirectory. The nested structure for pages creates a more organized hierarchy.
 
 ## Tips
 
@@ -127,6 +136,7 @@ silverbullet/
 5. **Nested pages**: If you have pages with `___` (triple underscore) in the name, they'll be converted to nested directories automatically
 6. **Assets**: All files in the assets folder will be copied while preserving the directory structure
 7. **Natural language dates**: Dates like "Nov 6th, 2025" or "January 1st, 2024" in links will be converted to ISO format (YYYY-MM-DD) and linked to the appropriate journal
+8. **Tasks**: Logseq TODO/DOING/DONE tasks are automatically converted to standard markdown checkboxes that work in SilverBullet
 
 ## Troubleshooting
 
