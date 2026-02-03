@@ -156,7 +156,67 @@ class LogseqToSilverBulletMigrator:
         - Page links with ___: [[foo___bar]] → [[foo/bar]]
         - Asset links: ../assets/image.png → assets/image.png (or keep as-is)
         - Tasks: Logseq task syntax → SilverBullet task syntax
+        - Checkbox-like patterns: Convert to plain text to avoid task interpretation
+        - Wiki links at start of list items: Restructure format
         """
+        # First, restructure lines that start with wiki links followed by text
+        # Pattern: - [[page]] text → - [page]\n  - text
+        # This prevents SilverBullet from treating them as tasks
+        def restructure_wiki_link_lines(match):
+            indent = match.group(1)
+            link_content = match.group(2)
+            rest_of_line = match.group(3).strip()
+            
+            # If there's text after the link, restructure it
+            if rest_of_line:
+                # Use single brackets for the link and indent the text
+                return f"{indent}- [{link_content}]\n{indent}  - {rest_of_line}"
+            else:
+                # If no text after link, just convert to single brackets
+                return f"{indent}- [{link_content}]"
+        
+        # Match: - [[content]] optional text
+        content = re.sub(
+            r'^(\s*)[-*]\s+\[\[([^\]]+)\]\](.*)$',
+            restructure_wiki_link_lines,
+            content,
+            flags=re.MULTILINE
+        )
+        
+        # Now handle existing checkbox-like patterns that aren't real tasks
+        # SilverBullet interprets "- [ anything ]" as a task, so we need to remove the brackets
+        # Pattern: - [ some text ] more text → - some text more text
+        # But we need to preserve actual checkboxes like [ ] and [x]
+        # and NOT match wiki links (which are now single brackets after the above conversion)
+        
+        # Match lines that look like: - [ text ] content
+        # but NOT - [ ] or - [x] (actual checkboxes)
+        def escape_pseudo_checkboxes(match):
+            indent = match.group(1)
+            bracket_content = match.group(2)
+            rest = match.group(3)
+            
+            # If it's [ ] or [x], it's a real checkbox - keep it
+            if bracket_content.strip() in ['', 'x', 'X']:
+                return match.group(0)
+            
+            # If it looks like a page path (contains / or ___), it's a wiki link - keep it
+            if '/' in bracket_content or '___' in bracket_content:
+                return match.group(0)
+            
+            # Otherwise, remove the brackets
+            return f"{indent}- {bracket_content}{rest}"
+        
+        # Apply the pattern
+        # (?!\[) means "not followed by [" to avoid matching [[
+        # (?!\]) means "not followed by ]" to avoid matching ]]
+        content = re.sub(
+            r'^(\s*)[-*]\s+\[(?!\[)([^\]]+)\](?!\])(.*)$',
+            escape_pseudo_checkboxes,
+            content,
+            flags=re.MULTILINE
+        )
+        
         # Convert Logseq tasks to SilverBullet format
         # Logseq uses: TODO, DOING, DONE, LATER, NOW, WAITING, CANCELED
         # SilverBullet uses standard markdown: - [ ], - [x]

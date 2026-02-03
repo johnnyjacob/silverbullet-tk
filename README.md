@@ -24,17 +24,17 @@ This script migrates your Logseq markdown files to SilverBullet v2 format.
 ### Basic Usage
 
 ```bash
-python3 migrate_logseq_to_silverbullet.py <logseq_root_directory> <target_directory>
+python3 migrate.py <logseq_root_directory> <target_directory>
 ```
 
 ### Example
 
 ```bash
 # Migrate from Logseq vault to a new SilverBullet directory
-python3 migrate_logseq_to_silverbullet.py ~/logseq ~/silverbullet-notes
+python3 migrate.py ~/logseq ~/silverbullet-notes
 
 # Or with relative paths
-python3 migrate_logseq_to_silverbullet.py ./my-logseq-vault ./silverbullet
+python3 migrate.py ./my-logseq-vault ./silverbullet
 ```
 
 ### Arguments
@@ -76,6 +76,32 @@ Logseq tasks are converted to standard markdown checkboxes:
 - `- NOW Call client` → `- [ ] Call client`
 - `- WAITING Response from team` → `- [ ] Response from team`
 - `- CANCELED Old task` → `- [x] ~~Old task~~`
+
+### Wiki Link Restructuring
+Lines starting with wiki links followed by text are restructured to avoid being interpreted as tasks:
+
+**Before (Logseq):**
+```
+- [[Work/Issues/ISSUE-123]] and some text
+- [[Project___Name]] description here
+```
+
+**After (SilverBullet):**
+```
+- [Work/Issues/ISSUE-123]
+  - and some text
+- [Project/Name]
+  - description here
+```
+
+The link becomes a list item with single brackets `[link]`, and any text after it becomes an indented sub-item. This format works perfectly in SilverBullet as a clickable link to the page.
+
+**Note about other bracket patterns:** 
+If you have patterns like `- [some text] content` in your Logseq notes (not wiki links or tasks), the brackets will be removed:
+- `- [note] This is important` → `- note This is important`
+- `- [tag] Category item` → `- tag Category item`
+
+Real checkboxes `- [ ]` and `- [x]` are always preserved.
 
 ### Content Conversion
 Links in your content are also updated:
