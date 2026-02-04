@@ -102,6 +102,21 @@ class LogseqToSilverBulletMigrator:
         
         return None
         
+    def format_date_display(self, year, month, day):
+        """Format a date as natural language like 'Jan 1st, 2024'"""
+        month_names = [
+            '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        ]
+        
+        # Get ordinal suffix
+        if 10 <= day % 100 <= 20:
+            suffix = 'th'
+        else:
+            suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+        
+        return f"{month_names[month]} {day}{suffix}, {year}"
+        
     def setup_target_directory(self):
         """Create target directory structure"""
         self.target_dir.mkdir(parents=True, exist_ok=True)
@@ -132,10 +147,15 @@ class LogseqToSilverBulletMigrator:
         - foo___bar.md → foo/bar.md
         - foo___bar___baz.md → foo/bar/baz.md
         
+        Also converts : to - in filenames
+        
         Returns a Path object relative to target_dir
         """
         # Remove .md extension
         name_without_ext = logseq_filename[:-3] if logseq_filename.endswith('.md') else logseq_filename
+        
+        # Replace : with - in filename
+        name_without_ext = name_without_ext.replace(':', '-')
         
         # Replace ___ with /
         if '___' in name_without_ext:
@@ -145,7 +165,7 @@ class LogseqToSilverBulletMigrator:
                 return Path(*path_parts[:-1]) / f"{path_parts[-1]}.md"
         
         # No ___ found, return as-is
-        return Path(logseq_filename)
+        return Path(f"{name_without_ext}.md")
     
     def convert_content(self, content, is_journal=False):
         """Convert content from Logseq to SilverBullet format
@@ -161,19 +181,54 @@ class LogseqToSilverBulletMigrator:
         """
         # First, restructure lines that start with wiki links followed by text
         # Pattern: - [[page]] text → - [page]\n  - text
+        # Special case for dates: - [[Dec 22nd, 2025]] → - Dec 22nd, 2025 [[2025-12-22]]
         # This prevents SilverBullet from treating them as tasks
         def restructure_wiki_link_lines(match):
             indent = match.group(1)
             link_content = match.group(2)
             rest_of_line = match.group(3).strip()
             
+            # Check if this is a date link
+            is_date = False
+            date_display = None
+            date_iso = None
+            
+            # Check if it matches YYYY_MM_DD pattern and convert to readable format
+            date_underscore_match = re.match(r'^(\d{4})_(\d{2})_(\d{2})$', link_content)
+            if date_underscore_match:
+                is_date = True
+                year, month, day = date_underscore_match.groups()
+                date_iso = f"{year}-{month}-{day}"
+                # Convert to readable format like "Jan 1st, 2024"
+                date_display = self.format_date_display(int(year), int(month), int(day))
+            elif re.match(r'^(\d{4})-(\d{2})-(\d{2})$', link_content):
+                # Already in YYYY-MM-DD format
+                is_date = True
+                year, month, day = link_content.split('-')
+                date_iso = link_content
+                date_display = self.format_date_display(int(year), int(month), int(day))
+            else:
+                # Check if it's a natural language date
+                parsed_date = self.parse_natural_date(link_content)
+                if parsed_date:
+                    is_date = True
+                    date_iso = parsed_date
+                    date_display = link_content  # Keep original natural language
+            
             # If there's text after the link, restructure it
             if rest_of_line:
-                # Use single brackets for the link and indent the text
-                return f"{indent}- [{link_content}]\n{indent}  - {rest_of_line}"
+                if is_date:
+                    # For date links: Natural language [[ISO-date]]
+                    return f"{indent}- {date_display} [[{date_iso}]]\n{indent}  - {rest_of_line}"
+                else:
+                    # For regular page links
+                    return f"{indent}- [{link_content}]\n{indent}  - {rest_of_line}"
             else:
-                # If no text after link, just convert to single brackets
-                return f"{indent}- [{link_content}]"
+                # If no text after link
+                if is_date:
+                    return f"{indent}- {date_display} [[{date_iso}]]"
+                else:
+                    return f"{indent}- [{link_content}]"
         
         # Match: - [[content]] optional text
         content = re.sub(
@@ -213,6 +268,76 @@ class LogseqToSilverBulletMigrator:
         content = re.sub(
             r'^(\s*)[-*]\s+\[(?!\[)([^\]]+)\](?!\])(.*)$',
             escape_pseudo_checkboxes,
+            content,
+            flags=re.MULTILINE
+        )
+        
+        # Convert Logseq logbook entries to SilverBullet attributes
+        # Logseq format:
+        # :LOGBOOK:
+        # CLOCK: [2024-01-15 Mon 10:00:00]--[2024-01-15 Mon 11:30:00] =>  01:30:00
+        # CLOCK: [2024-01-19 Mon 08:25:22]  (incomplete, no end time)
+        # :END:
+        #
+        # SilverBullet format (as attributes):
+        # logged:
+        # - 2024-01-15 10:00 - 11:30 (1h 30m)
+        
+        def convert_logbook(match):
+            logbook_content = match.group(1)
+            
+            # Extract all CLOCK entries - handle various spacing
+            # Pattern matches both complete and incomplete clock entries
+            clock_pattern = r'CLOCK:\s*\[([^\]]+)\](?:\s*--\s*\[([^\]]+)\]\s*=>\s*(\d{2}):(\d{2}):(\d{2}))?'
+            clocks = re.findall(clock_pattern, logbook_content)
+            
+            if not clocks:
+                return ''  # Remove empty logbook
+            
+            # Convert to SilverBullet format
+            logged_entries = []
+            for clock_data in clocks:
+                start_time = clock_data[0]
+                end_time = clock_data[1] if clock_data[1] else None
+                
+                # Parse start time: "2024-01-15 Mon 10:00:00"
+                start_match = re.search(r'(\d{4}-\d{2}-\d{2})\s+\w+\s+(\d{2}):(\d{2}):\d{2}', start_time)
+                
+                if start_match:
+                    date = start_match.group(1)
+                    start_hm = f"{start_match.group(2)}:{start_match.group(3)}"
+                    
+                    if end_time:
+                        # Complete entry with end time
+                        end_match = re.search(r'(\d{4}-\d{2}-\d{2})\s+\w+\s+(\d{2}):(\d{2}):\d{2}', end_time)
+                        
+                        if end_match:
+                            end_hm = f"{end_match.group(2)}:{end_match.group(3)}"
+                            
+                            # Format duration (remove leading zeros from hours)
+                            hours = clock_data[2]
+                            minutes = clock_data[3]
+                            duration_h = int(hours)
+                            duration_m = int(minutes)
+                            if duration_h > 0:
+                                duration_str = f"{duration_h}h {duration_m}m" if duration_m > 0 else f"{duration_h}h"
+                            else:
+                                duration_str = f"{duration_m}m"
+                            
+                            logged_entries.append(f"- {date} {start_hm} - {end_hm} ({duration_str})")
+                    else:
+                        # Incomplete entry (still running/no end time)
+                        logged_entries.append(f"- {date} {start_hm} - (in progress)")
+            
+            if logged_entries:
+                return "logged:\n" + "\n".join(logged_entries) + "\n"
+            return ''
+        
+        # Match LOGBOOK blocks - with colons at the beginning
+        # This matches from :LOGBOOK: to :END: with any content in between
+        content = re.sub(
+            r':LOGBOOK:\s*\n((?:.*\n)*?)\s*:END:\s*\n?',
+            convert_logbook,
             content,
             flags=re.MULTILINE
         )
