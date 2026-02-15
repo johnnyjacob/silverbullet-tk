@@ -8,7 +8,6 @@ A collection of tools, scripts, and resources for working with [SilverBullet](ht
   - Logseq to SilverBullet migration script
   - Journal backlink updater
 - **configs/** *(coming soon)* - Configuration examples and templates
-- **queries/** *(coming soon)* - Useful SilverBullet query snippets
 - **snippets/** *(coming soon)* - Code snippets and templates
 
 ## 🚀 Quick Start
@@ -28,7 +27,7 @@ If you want to reorganize your journal pages from flat `YYYY-MM-DD.md` to nested
 
 ```bash
 cd migrate
-python3 update_journal_backlinks.py
+python3 backlinks.py
 ```
 
 ## 🛠️ Tools
@@ -42,7 +41,7 @@ python3 update_journal_backlinks.py
   - Converts tasks and logbook entries
   - Updates all internal links
 
-- **update_journal_backlinks.py** - Journal organization tool
+- **backlinks.py** - Journal organization tool
   - Renames journal pages to nested folder structure
   - Automatically updates all backlinks across your space
   - Dry-run mode for safe testing
@@ -52,22 +51,9 @@ python3 update_journal_backlinks.py
 ### SilverBullet Links
 
 - [Official Website](https://silverbullet.md/)
-- [Documentation](https://silverbullet.md/docs)
+- [Documentation](https://silverbullet.md/)
 - [GitHub Repository](https://github.com/silverbulletmd/silverbullet)
 
-## 🤝 Contributing
-
-Contributions are welcome! Whether it's:
-- Bug fixes for migration scripts
-- New configuration examples
-- Useful query snippets
-- Documentation improvements
-
-Feel free to open an issue or submit a pull request.
-
-## 📝 License
-
-MIT License - feel free to use and modify these tools for your needs.
 
 ## 🙏 Acknowledgments
 
