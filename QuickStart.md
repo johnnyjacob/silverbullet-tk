@@ -1,6 +1,27 @@
 # Quick Start
 
-## Tips
+## Getting Started Checklist
+
+- [ ] Start SilverBullet with Docker
+- [ ] Install silversearcher plug
+- [ ] Install treeview plug
+- [ ] Add template blocks to your index page
+- [ ] Start taking notes!
+
+
+## Run
+
+### Docker Run
+```bash
+docker run -d --restart unless-stopped \
+  --name silverbullet \
+  -p 3000:3000 \
+  -v ./space:/space \
+  -e SB_USER=user:password \
+  ghcr.io/silverbulletmd/silverbullet:latest
+```
+
+Then access SilverBullet at: `http://localhost:3000`
 
 ### Essential Plugs
 
@@ -68,28 +89,5 @@ ${template.each(query[[
 ]], templates.taskItem)}
 ```
 
-## Run
-
-### Docker Run
-```bash
-docker run -d --restart unless-stopped \
-  --name silverbullet \
-  -p 3000:3000 \
-  -v ./space:/space \
-  -e SB_USER=user:password \
-  ghcr.io/silverbulletmd/silverbullet:latest
-```
-
-Then access SilverBullet at: `http://localhost:3000`
-
-
-## Getting Started Checklist
-
-- [ ] Start SilverBullet with Docker
-- [ ] Install silversearcher plug
-- [ ] Install treeview plug
-- [ ] Create an `index` page
-- [ ] Add template blocks to your index page
-- [ ] Start taking notes!
 
 **Pro Tip:** Press `Cmd/Ctrl + k` to quickly navigate between pages!
