@@ -12,6 +12,8 @@ A collection of tools, scripts, and resources for working with [SilverBullet](ht
 
 ## 🚀 Quick Start
 
+More in QuickStart.md
+
 ### Migrating from Logseq
 
 If you're migrating from Logseq to SilverBullet, check out the [migrate folder](migrate/) for the complete migration tool.
