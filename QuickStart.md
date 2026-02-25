@@ -44,6 +44,21 @@ Install the following plugs to enhance your SilverBullet experience:
    - Navigate to `PLUGS` page to see installed plugs
    - Or open command palette and type `Plugs: Update` to refresh
 
+#### Show Treeview Sidebar
+
+The treeview plug is hidden by default. To make it visible:
+
+1. **Open the Command Palette**
+   - Press `Cmd + /` (Mac) or `Ctrl + /` (Windows/Linux)
+
+2. **Toggle Treeview**
+   - Type `Treeview: Toggle` and press Enter
+   - The treeview sidebar will appear on the left side
+
+3. **Keep it Visible**
+   - The treeview state is saved automatically
+   - It will remain visible on subsequent sessions
+
 ### Index Page Setup
 
 Add these snippets to your index page for better overview:
